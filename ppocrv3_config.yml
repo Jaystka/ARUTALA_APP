@@ -1,0 +1,88 @@
+Global:
+  use_gpu: true
+  epoch_num: 50
+  log_smooth_window: 20
+  print_batch_step: 10
+  save_model_dir: "./output/ppocrv3"
+  save_epoch_step: 5
+  eval_batch_step: [0, 500]  # Evaluasi setiap 500 iterasi
+  test_batch_size_per_card: 4
+  pretrained_model: ""  # Kosong untuk pretraining
+  checkpoints: ""
+  save_inference_dir: ""
+
+Train:
+  dataset:
+    name: SimpleDataSet
+    data_dir: "dataset/images/"
+    label_file_list: ["dataset/train_list.txt"]
+    ratio_list: [1.0]
+    transforms:
+      - DecodeImage: {img_mode: "RGB", channel_first: false}
+      - RecResizeImg: {image_shape: [3, 48, 192]}
+      - KeepKeys: {keep_keys: ["image", "label"]}
+  loader:
+    shuffle: true
+    batch_size_per_card: 354
+    drop_last: false
+    num_workers: 4
+
+Eval:
+  dataset:
+    name: SimpleDataSet
+    data_dir: "dataset/images/"
+    label_file_list: ["dataset/train_list.txt"]
+    transforms:
+      - DecodeImage: {img_mode: "RGB", channel_first: false}
+      - RecResizeImg: {image_shape: [3, 48, 192]}
+      - KeepKeys: {keep_keys: ["image", "label"]}
+  loader:
+    shuffle: false
+    drop_last: false
+    batch_size_per_card: 354
+    num_workers: 4
+
+
+Architecture:
+  model_type: rec
+  algorithm: CRNN
+  Backbone:
+    name: MobileNetV3
+    scale: 0.5
+  Neck:
+    name: SequenceEncoder
+    encoder_type: rnn  # Bisa juga lstm atau gru
+    hidden_size: 96
+  Head:
+    name: CTCHead
+    fc_decay: 0.0004
+
+
+PostProcess:
+  name: CTCLabelDecode  # Untuk model OCR berbasis CTC
+  character_dict_path: ppocr/utils/javanese_dict.txt
+  use_space_char: true
+
+Transform: 
+  name: TPS  # Bisa diganti dengan None jika tidak digunakan
+  num_fiducial: 20
+  img_size: [32, 100]
+  input_channel: 1
+  output_channel: 512
+
+Loss:
+  name: CTCLoss
+
+Optimizer:
+  name: Adam
+  beta1: 0.9
+  beta2: 0.999
+  lr:
+    name: Cosine
+    learning_rate: 0.001
+
+Metric:
+  name: RecMetric
+  main_indicator: acc
+  
+
